@@ -1,0 +1,44 @@
+{
+  "mcpServers": {
+    "weather-server": {
+      "command": "node",
+      "args": ["../mcp-travel-servers/weather-mcp-server.js"],
+      "cwd": ".",
+      "env": {}
+    },
+    "places-server": {
+      "command": "node",
+      "args": ["../mcp-travel-servers/places-mcp-server.js"],
+      "cwd": ".",
+      "env": {}
+    },
+    "flight-server": {
+      "command": "node",
+      "args": ["../mcp-travel-servers/flight-mcp-server.js"],
+      "cwd": ".",
+      "env": {}
+    },
+    "n8n-mcp": {
+      "command": "npx",
+      "args": ["-y", "@dopehunter/n8n-mcp-server"],
+      "env": {
+        "N8N_BASE_URL": "http://localhost:5678/api",
+        "N8N_API_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NmYzNDFkYS1jMjRlLTQ2ZTAtODQ3Yi02NDg0YjAwYmVjYWYiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzU2MzQzODQ1LCJleHAiOjE3NTg4NTkyMDB9.nt6MjFC-zRZldFHxXi5bNFZHV7NWW8fp7wdGkNq5Jvs"
+      }
+    },
+    "n8n-workflows Docs": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://gitmcp.io/zie619/n8n-workflows"
+      ]
+    },
+    "context7 Docs": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://gitmcp.io/upstash/context7"
+      ]
+    }
+  }
+}

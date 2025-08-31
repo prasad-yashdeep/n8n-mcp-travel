@@ -1,0 +1,289 @@
+volumes:
+  n8n_storage:
+  postgres_storage:
+  ollama_storage:
+  mcp_storage:
+
+networks:
+  demo:
+
+x-n8n: &service-n8n
+  image: n8nio/n8n:latest
+  networks: ['demo']
+  environment:
+    - DB_TYPE=postgresdb
+    - DB_POSTGRESDB_HOST=postgres
+    - DB_POSTGRESDB_USER=${POSTGRES_USER}
+    - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+    - N8N_DIAGNOSTICS_ENABLED=false
+    - N8N_PERSONALIZATION_ENABLED=false
+    - N8N_ENCRYPTION_KEY
+    - N8N_USER_MANAGEMENT_JWT_SECRET
+    - N8N_COMMUNITY_PACKAGES_ENABLED=true
+    - N8N_COMMUNITY_PACKAGES_ALLOW_UNLISTED=true
+    - N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true
+    - OLLAMA_HOST=${OLLAMA_HOST:-ollama:11434}
+    # OpenAI API Key for agents
+    - OPENAI_API_KEY=${OPENAI_API_KEY}
+  env_file:
+    - path: .env
+      required: true
+
+x-ollama: &service-ollama
+  image: ollama/ollama:latest
+  container_name: ollama
+  networks: ['demo']
+  restart: unless-stopped
+  ports:
+    - 11434:11434
+  volumes:
+    - ollama_storage:/root/.ollama
+
+x-init-ollama: &init-ollama
+  image: ollama/ollama:latest
+  networks: ['demo']
+  container_name: ollama-pull-llama
+  volumes:
+    - ollama_storage:/root/.ollama
+  entrypoint: /bin/sh
+  environment:
+    - OLLAMA_HOST=ollama:11434
+  command:
+    - "-c"
+    - "sleep 3; ollama pull llama3.2"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    hostname: postgres
+    networks: ['demo']
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - POSTGRES_DB
+    volumes:
+      - postgres_storage:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h localhost -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  n8n-import:
+    <<: *service-n8n
+    hostname: n8n-import
+    container_name: n8n-import
+    entrypoint: /bin/sh
+    command:
+      - "-c"
+      - |
+        # Install MCP community node
+        npm install -g n8n-nodes-mcp-client
+        # Import credentials and workflows
+        n8n import:credentials --separate --input=/demo-data/credentials
+        n8n import:workflow --separate --input=/demo-data/workflows
+    volumes:
+      - ./n8n/demo-data:/demo-data
+      - ./n8n/workflows:/workflows
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  n8n:
+    <<: *service-n8n
+    hostname: n8n
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - 5678:5678
+    volumes:
+      - n8n_storage:/home/node/.n8n
+      - ./n8n/demo-data:/demo-data
+      - ./shared:/data/shared
+      - ./n8n/workflows:/workflows
+      - ./mcp-config:/mcp-config
+    depends_on:
+      postgres:
+        condition: service_healthy
+      n8n-import:
+        condition: service_completed_successfully
+      # mcp-server:
+      #   condition: service_healthy
+
+  # MCP Server Container
+  # mcp-server:
+  #   image: node:20-alpine
+  #   hostname: mcp-server
+  #   container_name: mcp-server
+  #   networks: ['demo']
+  #   restart: unless-stopped
+  #   ports:
+  #     - 3000:3000
+  #   volumes:
+  #     - mcp_storage:/data
+  #     - ./mcp-config:/config
+  #   environment:
+  #     - NODE_ENV=production
+  #     - MCP_PORT=3000
+  #     - MCP_HOST=0.0.0.0
+  #     - CONTEXT7_API_KEY=${CONTEXT7_API_KEY:-}
+  #   command: |
+  #     sh -c "
+  #       npm install -g @upstash/context7-mcp
+  #       # Start MCP server with HTTP transport
+  #       npx @upstash/context7-mcp --transport http --port 3000
+  #     "
+  #   healthcheck:
+  #     test: ['CMD', 'nc', '-z', 'localhost', '3000']
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+  # # Additional MCP servers for travel services (example)
+  # mcp-travel-server:
+  #   image: node:18-alpine
+  #   hostname: mcp-travel
+  #   container_name: mcp-travel-server
+  #   networks: ['demo']
+  #   restart: unless-stopped
+  #   ports:
+  #     - 3001:3001
+  #   volumes:
+  #     - ./mcp-travel:/app
+  #     - mcp_storage:/data
+  #   working_dir: /app
+  #   environment:
+  #     - NODE_ENV=production
+  #     - PORT=3001
+  #     - WEATHER_API_KEY=${WEATHER_API_KEY}
+  #     - MAPS_API_KEY=${MAPS_API_KEY}
+  #     - AMADEUS_CLIENT_ID=${AMADEUS_CLIENT_ID}
+  #     - AMADEUS_CLIENT_SECRET=${AMADEUS_CLIENT_SECRET}
+  #   command: |
+  #     sh -c "
+  #       if [ ! -f package.json ]; then
+  #         npm init -y
+  #         npm install express cors body-parser axios
+  #         npm install @modelcontextprotocol/sdk
+  #       fi
+  #       node server.js
+  #     "
+
+  # Ollama with CPU profile (default for Mac)
+  ollama-cpu:
+    profiles: ["cpu"]
+    <<: *service-ollama
+
+  # Ollama with GPU profiles
+  ollama-gpu:
+    profiles: ["gpu-nvidia"]
+    <<: *service-ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Initialize Ollama with models
+  ollama-pull-llama-cpu:
+    profiles: ["cpu"]
+    <<: *init-ollama
+    depends_on:
+      - ollama-cpu
+
+  # MCP Weather Server
+  mcp-weather-server:
+    image: node:20-alpine
+    hostname: mcp-weather
+    container_name: mcp-weather-server
+    networks: ['demo']
+    restart: unless-stopped
+    ports:
+      - 3000:3000
+    volumes:
+      - ./mcp-travel-servers:/app
+      - mcp_storage:/data
+    working_dir: /app
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    command: |
+      sh -c "
+        npm install
+        node weather-mcp-server.js --http --port=3000
+      "
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # MCP Places Server
+  mcp-places-server:
+    image: node:20-alpine
+    hostname: mcp-places
+    container_name: mcp-places-server
+    networks: ['demo']
+    restart: unless-stopped
+    ports:
+      - 3001:3001
+    volumes:
+      - ./mcp-travel-servers:/app
+      - mcp_storage:/data
+    working_dir: /app
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+    command: |
+      sh -c "
+        npm install
+        node places-mcp-server.js --http --port=3001
+      "
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3001/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # MCP Flight Server
+  mcp-flight-server:
+    image: node:20-alpine
+    hostname: mcp-flight
+    container_name: mcp-flight-server
+    networks: ['demo']
+    restart: unless-stopped
+    ports:
+      - 3002:3002
+    volumes:
+      - ./mcp-travel-servers:/app
+      - mcp_storage:/data
+    working_dir: /app
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+    command: |
+      sh -c "
+        npm install
+        node flight-mcp-server.js --http --port=3002
+      "
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3002/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis for caching (optional)
+  redis:
+    image: redis:7-alpine
+    hostname: redis
+    container_name: redis
+    networks: ['demo']
+    restart: unless-stopped
+    ports:
+      - 6379:6379
+    command: redis-server --appendonly yes
+    volumes:
+      - ./redis-data:/data

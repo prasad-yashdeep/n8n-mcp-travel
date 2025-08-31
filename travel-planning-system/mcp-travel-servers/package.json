@@ -1,0 +1,34 @@
+{
+  "name": "mcp-travel-servers",
+  "version": "1.0.0",
+  "description": "MCP Servers for Travel Planning Workflow",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start:weather": "node weather-mcp-server.js",
+    "start:places": "node places-mcp-server.js",
+    "start:flight": "node flight-mcp-server.js",
+    "start:all": "concurrently \"npm run start:weather\" \"npm run start:places\" \"npm run start:flight\"",
+    "start:weather:http": "node weather-mcp-server.js --http --port=3000",
+    "start:places:http": "node places-mcp-server.js --http --port=3001",
+    "start:flight:http": "node flight-mcp-server.js --http --port=3002",
+    "start:all:http": "concurrently \"npm run start:weather:http\" \"npm run start:places:http\" \"npm run start:flight:http\"",
+    "dev:weather": "nodemon weather-mcp-server.js",
+    "dev:places": "nodemon places-mcp-server.js",
+    "dev:flight": "nodemon flight-mcp-server.js"
+  },
+  "keywords": ["mcp", "travel", "weather", "places", "flights"],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "concurrently": "^9.2.1",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "@modelcontextprotocol/sdk": "^1.17.4",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  }
+}

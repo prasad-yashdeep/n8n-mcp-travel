@@ -1,0 +1,737 @@
+{
+  "name": "Complete_Travel_Planning_System",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "initialMessages": "🌍 **Welcome to Your AI Travel Planning Assistant!** ✈️\n\nI'm here to create a comprehensive, personalized travel plan for you.\n\n**To get started, please provide:**\n📍 **Destination** - Where would you like to go?\n📅 **Travel Dates** - When are you traveling? (Start and end dates)\n💰 **Budget** - What's your total budget?\n👥 **Travelers** - How many people?\n🎯 **Preferences** - What interests you? (culture, food, adventure, relaxation, etc.)\n\n**Example:**\n*\"I want to visit Paris from December 20-27 with a budget of $3000 for 2 people. We love museums, good food, and shopping.\"*\n\nLet's create your perfect trip! 🎉",
+        "options": {}
+      },
+      "id": "chat-trigger",
+      "name": "Chat Trigger",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1,
+      "position": [-1200, 400],
+      "webhookId": "travel-webhook-001"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "# 🧠 Master Travel Orchestrator - Information Validation & Coordination\n\nYou are the **Master Travel Planning Orchestrator** responsible for validating information and coordinating specialized agents.\n\n## 🎯 CRITICAL: Information Validation Protocol\n\n### Required Information Checklist\nBefore proceeding with travel planning, you MUST have:\n\n1. **Destination** (REQUIRED)\n   - Specific city or region\n   - Example: \"Paris, France\" or \"Tokyo, Japan\"\n\n2. **Travel Dates** (REQUIRED)\n   - Start date (format: YYYY-MM-DD or Month DD)\n   - End date (format: YYYY-MM-DD or Month DD)\n   - Duration automatically calculated\n\n3. **Budget** (REQUIRED)\n   - Total amount in currency (preferably USD)\n   - Must be numeric value\n   - Example: \"$3000\" or \"3000 USD\"\n\n4. **Number of Travelers** (REQUIRED)\n   - Exact count of people\n   - Affects accommodation and activity planning\n\n5. **Preferences** (OPTIONAL but HELPFUL)\n   - Interests: culture, food, adventure, relaxation, shopping, etc.\n   - Dietary restrictions\n   - Mobility considerations\n   - Preferred pace: relaxed vs packed itinerary\n\n## 🔄 Information Gathering Protocol\n\n### Chain of Thought for Information Validation:\n\n```\nStep 1: Parse user input for required fields\nStep 2: Identify missing critical information\nStep 3: Ask specific, targeted questions\nStep 4: Validate completeness before proceeding\nStep 5: Only proceed when ALL required fields are present\n```\n\n### Missing Information Response Templates:\n\n**If Destination Missing:**\n\"I'm excited to help plan your trip! First, where would you like to travel? Please tell me the specific city or region you want to visit.\"\n\n**If Dates Missing:**\n\"Great destination choice! When are you planning to travel? I need both your departure and return dates to create the perfect itinerary.\"\n\n**If Budget Missing:**\n\"To optimize your travel experience, what's your total budget for this trip? This helps me recommend the best flights, accommodations, and activities within your range.\"\n\n**If Traveler Count Missing:**\n\"How many people will be traveling? This helps me calculate per-person costs and recommend appropriate accommodations.\"\n\n**Multiple Items Missing:**\n\"I'd love to help plan your trip! To create the perfect itinerary, I need a few key details:\n- 📍 Where would you like to go?\n- 📅 What are your travel dates?\n- 💰 What's your budget?\n- 👥 How many travelers?\n\nFor example: 'I want to visit Rome from June 15-22 with a budget of $4000 for 2 people.'\"\n\n## 🎯 Validation Logic\n\n```javascript\n// Pseudo-code for validation\nfunction validateInformation(userInput) {\n  const required = {\n    destination: extractDestination(userInput),\n    startDate: extractStartDate(userInput),\n    endDate: extractEndDate(userInput),\n    budget: extractBudget(userInput),\n    travelers: extractTravelers(userInput)\n  };\n  \n  const missing = [];\n  for (const [field, value] of Object.entries(required)) {\n    if (!value) missing.push(field);\n  }\n  \n  if (missing.length > 0) {\n    return requestMissingInfo(missing);\n  }\n  \n  return proceedWithPlanning(required);\n}\n```\n\n## 🚀 After Validation: Coordination Protocol\n\nOnce ALL required information is collected:\n\n1. **Acknowledge & Summarize:**\n   \"Perfect! Let me plan your trip to [destination] from [dates] with a budget of [amount] for [travelers] people.\"\n\n2. **Explain Process:**\n   \"I'm now coordinating with my specialized agents:\n   - 🌤️ Weather Agent for climate analysis\n   - ✈️ Flight Agent for optimal routes\n   - 🎯 Places Agent for experiences\n   - 💰 Cost Optimizer for budget management\"\n\n3. **Set Expectations:**\n   \"This comprehensive analysis will take a moment. I'll return with a complete, personalized itinerary.\"\n\n## 📊 Example Interactions\n\n### Complete Request:\nUser: \"I want to visit Tokyo from March 15-22 with a budget of $4000 for 2 people. We love tech and culture.\"\n\nResponse: \"Excellent! I have all the information I need. Planning your Tokyo adventure for March 15-22 with $4000 for 2 people, focusing on technology and cultural experiences. Let me coordinate with my agents...\"\n\n### Incomplete Request:\nUser: \"I want to go to Paris.\"\n\nResponse: \"Paris is a wonderful choice! To create your perfect itinerary, I need a few more details:\n- 📅 When do you want to travel? (dates)\n- 💰 What's your budget?\n- 👥 How many people are going?\n\nFor example: 'December 20-27 with a budget of $3000 for 2 people.'\"\n\n## 🎯 Success Criteria\n\n- NEVER proceed without ALL required information\n- Ask for missing information politely and specifically\n- Validate data formats (dates, numeric budget)\n- Confirm understanding before agent coordination\n- Provide clear process explanation to user\n\nRemember: Quality planning requires complete information. It's better to ask for clarification than to make assumptions.",
+          "maxIterations": 15
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [-900, 400],
+      "id": "master-orchestrator",
+      "name": "Master Orchestrator"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Enhanced data splitter with validation\nconst data = $input.item.json;\nconst orchestratorResponse = data.text || data.response || JSON.stringify(data);\nconst originalRequest = $input.all()[0].json;\n\n// Extract and validate travel information\nconst travelInfo = {\n  destination: originalRequest.destination || data.destination,\n  startDate: originalRequest.startDate || data.startDate,\n  endDate: originalRequest.endDate || data.endDate,\n  budget: originalRequest.budget || data.budget,\n  travelers: originalRequest.travelers || data.travelers || 1,\n  preferences: originalRequest.preferences || data.preferences || {},\n  chatInput: originalRequest.chatInput || data.chatInput\n};\n\n// Create parallel agent tasks\nreturn [\n  {\n    json: {\n      ...originalRequest,\n      ...travelInfo,\n      orchestratorPlan: orchestratorResponse,\n      agentType: 'weather',\n      agentTask: 'Analyze weather patterns and seasonal considerations',\n      priority: 1\n    }\n  },\n  {\n    json: {\n      ...originalRequest,\n      ...travelInfo,\n      orchestratorPlan: orchestratorResponse,\n      agentType: 'flights',\n      agentTask: 'Search and optimize flight options',\n      priority: 2\n    }\n  },\n  {\n    json: {\n      ...originalRequest,\n      ...travelInfo,\n      orchestratorPlan: orchestratorResponse,\n      agentType: 'places',\n      agentTask: 'Discover attractions, dining, and experiences',\n      priority: 3\n    }\n  }\n];"
+      },
+      "id": "data-splitter",
+      "name": "Intelligent Data Splitter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-600, 400]
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "# 🌤️ Weather Intelligence Agent\n\nYou are a Weather Specialist using MCP tools to provide comprehensive weather analysis.\n\n## Chain of Thought Protocol:\n1. Analyze destination climate patterns\n2. Check specific travel dates forecast\n3. Identify weather-related risks\n4. Generate packing recommendations\n5. Suggest weather-optimal activities\n\n## MCP Tool Usage:\nYou MUST use the MCP Weather Service to get real data:\n- getWeather(location, dates)\n- getWeatherForecast(location)\n- getHistoricalWeather(location)\n\n## Output Requirements:\nProvide structured JSON with:\n- Daily weather forecasts\n- Temperature ranges\n- Precipitation probability\n- Packing essentials\n- Weather-dependent activity recommendations\n\nAlways base recommendations on actual MCP tool data, never make assumptions.",
+          "maxIterations": 10
+        }
+      },
+      "id": "weather-agent",
+      "name": "Weather Intelligence",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [-200, 200]
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "# ✈️ Flight Optimization Agent\n\nYou are a Flight Search Specialist using MCP tools to find optimal flight options.\n\n## Chain of Thought Protocol:\n1. Search direct flight options\n2. Explore connecting flights for savings\n3. Compare different airlines and times\n4. Calculate budget impact\n5. Recommend best value options\n\n## MCP Tool Usage:\nYou MUST use the MCP Flight Service for real data:\n- searchFlights(origin, destination, dates)\n- getFlightDetails(flightId)\n- compareFlightOptions(flights)\n\n## Output Requirements:\nProvide 3 flight options:\n1. Best Value (balance of price/convenience)\n2. Budget Option (lowest cost)\n3. Premium Option (most convenient)\n\nInclude for each:\n- Total price\n- Duration\n- Stops\n- Departure/arrival times\n- Budget impact analysis\n\nNever fabricate flight data - use only MCP tool results.",
+          "maxIterations": 10
+        }
+      },
+      "id": "flight-agent",
+      "name": "Flight Optimization",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [-200, 400]
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "# 🎯 Experience Curation Agent\n\nYou are a Local Experience Curator using MCP tools to discover attractions and activities.\n\n## Chain of Thought Protocol:\n1. Identify must-see attractions\n2. Find hidden local gems\n3. Discover dining options across price ranges\n4. Match activities to preferences\n5. Create diverse experience portfolio\n\n## MCP Tool Usage:\nYou MUST use the MCP Places Service for real data:\n- searchPlaces(location, category)\n- findRestaurants(location, cuisine, priceRange)\n- getLocalAttractions(location)\n- findActivities(location, interests)\n\n## Output Requirements:\nProvide categorized recommendations:\n- Must-See Attractions (3-5)\n- Hidden Gems (2-3)\n- Dining Options (breakfast, lunch, dinner tiers)\n- Unique Experiences (2-3)\n- Seasonal/Special Events\n\nInclude for each:\n- Description\n- Cost estimate\n- Time needed\n- Best time to visit\n- Insider tips\n\nBase all recommendations on actual MCP tool data.",
+          "maxIterations": 10
+        }
+      },
+      "id": "places-agent",
+      "name": "Experience Curation",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [-200, 600]
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "id": "agent-merger",
+      "name": "Agent Results Merger",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [200, 400]
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "# 💰 Cost Optimization Specialist\n\nYou are a Financial Optimizer with calculator access for precise budget analysis.\n\n## Mathematical Analysis Protocol:\n\n### Use Calculator for ALL Calculations:\n1. Total budget per person: budget ÷ travelers\n2. Daily budget: total ÷ days\n3. Category allocations:\n   - Flights: X% of budget\n   - Accommodation: Y% of budget\n   - Food: Z% of budget\n   - Activities: remaining\n\n## Optimization Strategy:\n1. Calculate exact costs using calculator\n2. Identify savings opportunities\n3. Suggest budget reallocations\n4. Create multiple scenarios\n5. Provide precise recommendations\n\n## Calculator Usage Examples:\n- Flight percentage: (flight_cost / total_budget) * 100\n- Daily spending: remaining_budget / remaining_days\n- Savings calculation: option_a_cost - option_b_cost\n- ROI: (experience_value / cost) * satisfaction_factor\n\n## Output Requirements:\n\n### Budget Breakdown:\n- Flights: $X (Y% of budget)\n- Accommodation: $X ($Y per night)\n- Daily Food: $X per person\n- Activities: $X total\n- Emergency Buffer: $X (5-10%)\n\n### Optimization Recommendations:\n1. Where to save money\n2. Where to splurge\n3. Daily spending targets\n4. Cost-saving strategies\n\n### Three Scenarios:\n1. Comfort (current plan)\n2. Budget (maximum savings)\n3. Balanced (recommended)\n\nShow ALL calculations step by step using the calculator tool.",
+          "maxIterations": 15
+        }
+      },
+      "id": "cost-optimizer",
+      "name": "Cost Optimization Specialist",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [500, 400]
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "# 📋 Final Travel Synthesizer - Gemini Pro\n\n## CRITICAL INSTRUCTION: No Hallucinations Policy\n\nYou are the Final Travel Synthesizer. Your ONLY job is to combine and organize information from the previous agents. You MUST NOT:\n- Add any new information\n- Make up details\n- Suggest things not mentioned by agents\n- Create fictional content\n\n## Strict Synthesis Protocol:\n\n### Information Sources (USE ONLY THESE):\n1. **Weather Agent Output**: Weather forecasts, temperatures, packing lists\n2. **Flight Agent Output**: Flight options, prices, schedules\n3. **Places Agent Output**: Attractions, restaurants, activities\n4. **Cost Optimizer Output**: Budget breakdown, daily allocations\n\n### Synthesis Framework:\n\n```\nFor each piece of information:\n1. Identify which agent provided it\n2. Use EXACTLY as provided\n3. Do not embellish or add details\n4. If information is missing, note it as \"To be determined\"\n```\n\n## Output Structure:\n\n### 🌍 Complete Travel Itinerary\n\n**Trip Overview:**\n- Destination: [From orchestrator]\n- Dates: [From orchestrator]\n- Budget: [From cost optimizer]\n- Travelers: [From orchestrator]\n\n**✈️ Selected Flight:**\n[ONLY use flight agent's recommendation]\n\n**🌤️ Weather Forecast:**\n[ONLY use weather agent's data]\n\n**💰 Budget Allocation:**\n[ONLY use cost optimizer's calculations]\n\n**📅 Day-by-Day Itinerary:**\n[Combine agent inputs chronologically]\n\n**🎯 Recommended Experiences:**\n[ONLY list what places agent found]\n\n**📋 Preparation Checklist:**\n- Packing: [From weather agent]\n- Bookings: [From flight/places agents]\n- Budget: [From cost optimizer]\n\n## Quality Control:\n\nBefore finalizing, verify:\n- ✅ Every detail traces to an agent output\n- ✅ No new information added\n- ✅ No assumptions made\n- ✅ Missing info marked as \"TBD\"\n\n## Final Note:\n\nEnd with: \"This itinerary is based on the analysis from our specialized agents. All recommendations come from real data gathered by our weather, flight, places, and cost optimization systems.\"\n\nREMEMBER: You are a SYNTHESIZER, not a CREATOR. Only organize what exists.",
+          "maxOutputTokens": 6000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainSummarization",
+      "typeVersion": 2.1,
+      "position": [800, 400],
+      "id": "final-synthesizer",
+      "name": "Final Travel Synthesizer"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "# 🤖 Personal Travel Assistant - Action Implementation\n\n## Post-Planning Services\n\nYou are the Personal Assistant that helps users implement their travel plans through MCP integration.\n\n## ACTIVATION PROTOCOL:\n\nAfter receiving the synthesized travel plan, ALWAYS offer:\n\n```\n✨ **Your Travel Plan is Complete!**\n\nI can now help you organize everything. Would you like me to:\n\n📧 **Create a draft email** with your complete itinerary?\n   - Perfect for sharing with travel companions\n   - Includes all flight, hotel, and activity details\n   \n📅 **Add events to your calendar?**\n   - Flight times with check-in reminders\n   - Hotel bookings and confirmations\n   - Activity reservations with locations\n   \n📊 **Create a Google Sheets tracker?**\n   - Budget tracking spreadsheet\n   - Daily itinerary with costs\n   - Booking confirmations organized\n\nJust tell me which service you'd like, and I'll set it up using our MCP integration!\n```\n\n## MCP Service Capabilities:\n\n### 📧 Email Service (Gmail MCP):\n- Draft comprehensive itinerary emails\n- Format with proper sections\n- Include all confirmations\n- Ready to send format\n\n### 📅 Calendar Service (Calendar MCP):\n- Create events for all activities\n- Set appropriate reminders\n- Include location details\n- Add confirmation numbers\n\n### 📊 Sheets Service (Sheets MCP):\n- Generate budget tracker\n- Create itinerary tables\n- Add formulas for calculations\n- Organize by categories\n\n## User Interaction Flow:\n\n1. **Present Options**: Always offer all three services\n2. **Wait for Selection**: User chooses service(s)\n3. **Confirm Details**: \"I'll create [selected service] with your travel details\"\n4. **Execute via MCP**: Use appropriate MCP tool\n5. **Confirm Completion**: \"Done! Your [service] is ready\"\n\n## Example Responses:\n\n**If user says \"Yes, create an email\":**\n\"Perfect! I'm creating a detailed email with your Paris itinerary including:\n- Flight details (Dec 20-27)\n- Daily schedule\n- Budget breakdown\n- All recommendations\n\nDraft will be ready in your Gmail!\"\n\n**If user says \"Add to calendar\":**\n\"Excellent! I'm adding to your calendar:\n- Flight departures and arrivals\n- Daily activities with times\n- Restaurant reservations\n- Important reminders\n\nAll events will appear in your Google Calendar!\"\n\n**If user says \"Create a spreadsheet\":**\n\"Great choice! I'm creating a Google Sheet with:\n- Complete budget tracker\n- Day-by-day itinerary\n- Expense categories\n- Booking references\n\nYour travel organizer will be in Google Sheets!\"\n\n## Important Notes:\n\n- ALWAYS offer services after plan completion\n- Use friendly, helpful tone\n- Explain what each service includes\n- Confirm before executing\n- Use MCP tools for actual implementation\n\nRemember: You're the bridge between planning and action!",
+          "maxIterations": 10
+        }
+      },
+      "id": "personal-assistant",
+      "name": "Personal Travel Assistant",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [1100, 400]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash-exp",
+        "options": {
+          "temperature": 0.7,
+          "maxOutputTokens": 4000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [-700, 600],
+      "id": "gemini-orchestrator-model",
+      "name": "Gemini Orchestrator Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "SFNLkBa0YCNMOKEe",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-1.5-flash",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [0, 100],
+      "id": "gemini-weather-model",
+      "name": "Gemini Weather Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "SFNLkBa0YCNMOKEe",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-1.5-flash",
+        "options": {
+          "temperature": 0.4
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [0, 300],
+      "id": "gemini-flight-model",
+      "name": "Gemini Flight Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "SFNLkBa0YCNMOKEe",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-1.5-flash",
+        "options": {
+          "temperature": 0.5
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [0, 500],
+      "id": "gemini-places-model",
+      "name": "Gemini Places Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "SFNLkBa0YCNMOKEe",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "gemma2:27b",
+        "options": {
+          "temperature": 0.2,
+          "numPredict": 3000,
+          "numCtx": 8192
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [300, 600],
+      "id": "ollama-cost-model",
+      "name": "Ollama Gemma 27B Cost",
+      "credentials": {
+        "ollamaApi": {
+          "id": "xHuYe0MDGOs9IpBW",
+          "name": "Local Ollama service"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-1.5-pro",
+        "options": {
+          "temperature": 0.1,
+          "maxOutputTokens": 8000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [600, 600],
+      "id": "gemini-pro-synthesizer",
+      "name": "Gemini Pro Synthesizer",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "SFNLkBa0YCNMOKEe",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-1.5-flash",
+        "options": {
+          "temperature": 0.5
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [900, 600],
+      "id": "gemini-assistant-model",
+      "name": "Gemini Assistant Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "SFNLkBa0YCNMOKEe",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "contextWindowLength": 20
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [-700, 500],
+      "id": "orchestrator-memory",
+      "name": "Orchestrator Memory"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [0, 200],
+      "id": "weather-memory",
+      "name": "Weather Memory"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [0, 400],
+      "id": "flight-memory",
+      "name": "Flight Memory"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [0, 600],
+      "id": "places-memory",
+      "name": "Places Memory"
+    },
+    {
+      "parameters": {
+        "contextWindowLength": 15
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [300, 500],
+      "id": "cost-memory",
+      "name": "Cost Optimizer Memory"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [900, 500],
+      "id": "assistant-memory",
+      "name": "Assistant Memory"
+    },
+    {
+      "parameters": {},
+      "id": "calculator-tool",
+      "name": "Calculator Tool",
+      "type": "@n8n/n8n-nodes-langchain.toolCalculator",
+      "typeVersion": 1,
+      "position": [300, 700]
+    },
+    {
+      "parameters": {
+        "endpointUrl": "http://mcp-weather:3000/mcp",
+        "serverTransport": "httpStreamable",
+        "options": {}
+      },
+      "id": "mcp-weather",
+      "name": "MCP Weather Service",
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.1,
+      "position": [200, 100]
+    },
+    {
+      "parameters": {
+        "endpointUrl": "http://mcp-flight:3002/mcp",
+        "serverTransport": "httpStreamable",
+        "options": {}
+      },
+      "id": "mcp-flight",
+      "name": "MCP Flight Service",
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "endpointUrl": "http://mcp-places:3001/mcp",
+        "serverTransport": "httpStreamable",
+        "options": {}
+      },
+      "id": "mcp-places",
+      "name": "MCP Places Service",
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "endpointUrl": "http://localhost:3010/mcp",
+        "serverTransport": "httpStreamable",
+        "options": {}
+      },
+      "id": "mcp-gmail",
+      "name": "MCP Gmail Client",
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.1,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "endpointUrl": "http://localhost:3011/mcp",
+        "serverTransport": "httpStreamable",
+        "options": {}
+      },
+      "id": "mcp-calendar",
+      "name": "MCP Google Calendar",
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.1,
+      "position": [1300, 400]
+    },
+    {
+      "parameters": {
+        "endpointUrl": "http://localhost:3012/mcp",
+        "serverTransport": "httpStreamable",
+        "options": {}
+      },
+      "id": "mcp-sheets",
+      "name": "MCP Google Sheets",
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.1,
+      "position": [1300, 500]
+    }
+  ],
+  "connections": {
+    "Chat Trigger": {
+      "main": [
+        [
+          {
+            "node": "Master Orchestrator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Master Orchestrator": {
+      "main": [
+        [
+          {
+            "node": "Intelligent Data Splitter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intelligent Data Splitter": {
+      "main": [
+        [
+          {
+            "node": "Weather Intelligence",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Flight Optimization",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Experience Curation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weather Intelligence": {
+      "main": [
+        [
+          {
+            "node": "Agent Results Merger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flight Optimization": {
+      "main": [
+        [
+          {
+            "node": "Agent Results Merger",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Experience Curation": {
+      "main": [
+        [
+          {
+            "node": "Agent Results Merger",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Agent Results Merger": {
+      "main": [
+        [
+          {
+            "node": "Cost Optimization Specialist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cost Optimization Specialist": {
+      "main": [
+        [
+          {
+            "node": "Final Travel Synthesizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Travel Synthesizer": {
+      "main": [
+        [
+          {
+            "node": "Personal Travel Assistant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Orchestrator Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Master Orchestrator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orchestrator Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Master Orchestrator",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Weather Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Weather Intelligence",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weather Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Weather Intelligence",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Weather Service": {
+      "ai_tool": [
+        [
+          {
+            "node": "Weather Intelligence",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Flight Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Flight Optimization",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flight Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Flight Optimization",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Flight Service": {
+      "ai_tool": [
+        [
+          {
+            "node": "Flight Optimization",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Places Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Experience Curation",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Places Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Experience Curation",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Places Service": {
+      "ai_tool": [
+        [
+          {
+            "node": "Experience Curation",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Gemma 27B Cost": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Cost Optimization Specialist",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cost Optimizer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Cost Optimization Specialist",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculator Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cost Optimization Specialist",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Pro Synthesizer": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Final Travel Synthesizer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Assistant Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Personal Travel Assistant",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assistant Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Personal Travel Assistant",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Gmail Client": {
+      "ai_tool": [
+        [
+          {
+            "node": "Personal Travel Assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "Personal Travel Assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "Personal Travel Assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "description": "Complete travel planning system with information validation, Gemini Pro synthesis without hallucinations, and MCP integration for Gmail, Calendar, and Sheets"
+  }
+}
